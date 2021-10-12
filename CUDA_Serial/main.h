@@ -23,6 +23,10 @@ class system_2D{
             return data[i_len*j+i];
         }
 
+        T* get_data() {
+            return data;
+        }
+
         tuple<int,int> get_dimensions() {
             return tuple<int,int>{j_len,i_len};
         }
@@ -35,6 +39,7 @@ class system_2D{
                 }        
                 cout << "\n"; 
             }   
+            cout << "\n";
         }
 };
 

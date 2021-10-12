@@ -9,6 +9,9 @@ __global__ void mykernel() {
 
 void forward_fft(system_2D<double>& host_system) {
     transform_system_2D device_system(host_system.get_dimensions());
+    device_system.forward_transform(host_system.get_data());
+    device_system.backward_transform(host_system.get_data());
+    host_system.print();
     mykernel<<<1,1>>>();
     cudaDeviceSynchronize();
 }
