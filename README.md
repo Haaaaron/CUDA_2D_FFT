@@ -6,6 +6,6 @@ All of the simulations are built around a Phase Field Crystal model, nonetheless
 
 Phase Field Crystal model paralellised with MPI
 
-## [Serial CUDA FFT] (./CUDA_Serial)
+## [Serial CUDA FFT](./CUDA_Serial)
 
 Serial version of CUDA FFT
