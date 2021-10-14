@@ -9,7 +9,7 @@ main: main.o FFT.o
 	rm -rf *.o
 
 FFT.o: FFT.cu
-	$(CUDACC) $(CUDAFLAGS) FFT.cu
+	$(CUDACC) $(CUDAFLAGS) FFT.cu -lcufft
 
 main.o: main.cpp
 	$(CC) -c main.cpp

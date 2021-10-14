@@ -9,9 +9,11 @@ class system_2D{
 
     private:
         T* data;
+
         int j_len,i_len;
 
     public:
+    
         system_2D(int w, int h):
             data(new T[w*h]), j_len(w), i_len(h) {}
 
@@ -20,7 +22,7 @@ class system_2D{
         }
 
         T& operator()(int i, int j){
-            return data[i_len*j+i];
+            return data[j_len*i+j];
         }
 
         T* get_data() {
