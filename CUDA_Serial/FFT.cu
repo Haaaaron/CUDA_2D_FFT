@@ -41,10 +41,10 @@ __global__ void transpose(cufftDoubleComplex* in, cufftDoubleComplex* out, int w
     }
 }
 
-void forward_fft(system_2D<double>& host_system) {
-    transform_system_2D<cufftDoubleReal, cufftDoubleComplex> device_system(host_system.get_dimensions());
-    device_system.forward_transform(host_system.get_data());
-    device_system.inverse_transform(host_system.get_data());
-    host_system.print();
-    cudaDeviceSynchronize();
-}
+// void forward_fft(system_2D<double>& host_system) {
+//     transform_system_2D<cufftDoubleReal, cufftDoubleComplex> device_system(host_system.get_dimensions());
+//     device_system.forward_transform(host_system.get_data());
+//     device_system.inverse_transform(host_system.get_data());
+//     host_system.print();
+//     cudaDeviceSynchronize();
+// }
