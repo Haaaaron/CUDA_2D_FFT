@@ -1,7 +1,7 @@
 #include <tuple>
 #include <cuda.h>
 #include <cufft.h>
-
+// https://enccs.github.io/openmp-gpu/gpu-architecture/
 #define tile_dim 4
 
 __global__ void transpose(cufftDoubleComplex* input_data, cufftDoubleComplex* output_data, int width, int height);
