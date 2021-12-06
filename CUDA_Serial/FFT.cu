@@ -3,48 +3,58 @@
 #include "main.h"
 #include "fft.h"
 
-// __global__ void transpose(cufftDoubleComplex* input_data, cufftDoubleComplex* output_data, int width, int height) {
-    
-//     int index = blockIdx.x*blockDim.x + threadIdx.x;
-//     int tile_y = threadIdx.x/tile_dim;
-//     int tile_x = threadIdx.x % tile_dim;
-//     int x_index = index/width;
-//     int y_index = index % width;
-//     int out_index = y_index*height + x_index;
-//     __shared__ cufftDoubleComplex tile[tile_dim][tile_dim+1];
+__global__ void transpose(cufftDoubleComplex *idata, cufftDoubleComplex *odata, int width, int height) {
+	__shared__ cufftDoubleComplex block[tile_dim][tile_dim+1];
+	
+	// read the matrix tile into shared memory
+    // load one element per thread from device memory (idata) and store it
+    // in transposed order in block[][]
+	unsigned int xIndex = blockIdx.x * tile_dim + threadIdx.x;
+	unsigned int yIndex = blockIdx.y * tile_dim + threadIdx.y;
+	if((xIndex < width) && (yIndex < height))
+	{
+		unsigned int index_in = yIndex * width + xIndex;
+		block[threadIdx.y][threadIdx.x] = idata[index_in];
+	}
 
-//     if (index<width*height) tile[tile_y][tile_x]=input_data[index];
+    // synchronise to ensure all writes to block[][] have completed
+	__syncthreads();
 
-//     __syncthreads();
-
-//     if(out_index < height*width) output_data[out_index]=tile[tile_x][tile_y];
-// }
-
-__global__ void transpose(cufftDoubleComplex* in, cufftDoubleComplex* out, int width, int height) {
-    
-    int x_index= blockIdx.x * tile_dim + threadIdx.x;
-    int y_index= blockIdx.y * tile_dim + threadIdx.y;
-    __shared__ cufftDoubleComplex tile[tile_dim][tile_dim+1];
-    if(y_index<height && x_index<width) {
-        int in_index=y_index*width + x_index; //[y][x]
-        tile[threadIdx.y][threadIdx.x]=in[in_index];
-        // Coalesced reads
-    }
-    __syncthreads();
-    int new_x = blockIdx.y * tile_dim + threadIdx.x; // transpose block offset
-    int new_y = blockIdx.x * tile_dim + threadIdx.y;
-    if(y_index<width && x_index<height) {
-        int out_index=new_y*width + new_x; //[x][y] different indices. Correct????
-        // Coalesced writes
-        // (Based on https://developer.nvidia.com/blog/efficient-matrix-transpose-cuda-cc/)
-        out[out_index]=tile[threadIdx.x][threadIdx.y];
-    }
+	// write the transposed matrix tile to global memory (odata) in linear order
+	xIndex = blockIdx.y * tile_dim + threadIdx.x;
+	yIndex = blockIdx.x * tile_dim + threadIdx.y;
+	if((xIndex < height) && (yIndex < width))
+	{
+		unsigned int index_out = yIndex * height + xIndex;
+		odata[index_out] = block[threadIdx.x][threadIdx.y];
+	}
 }
 
-// void forward_fft(system_2D<double>& host_system) {
-//     transform_system_2D<cufftDoubleReal, cufftDoubleComplex> device_system(host_system.get_dimensions());
-//     device_system.forward_transform(host_system.get_data());
-//     device_system.inverse_transform(host_system.get_data());
-//     host_system.print();
-//     cudaDeviceSynchronize();
+// __global__ void convolution_kernel(cufftDoubleComplex *idata, const cufftDoubleReal dx, int x, int y) {
+
+//     unsigned int xIndex = blockIdx.x * gridDim.x + threadIdx.x;
+//     int ix = xIndex/y;
+//     int iy = xIndex % y;
+//     double kx = 2*acos(-1)/(x*dx)*(ix > x/2 ? ix - x: ix);
+//     double ky = 2*acos(-1)/(y*dy)*(iy);
+
+//     double kx_square = 2*(1-cos(dx*kx))/(dx*dx);
+//     double ky_square = 2*(1-cos(dy*ky))/(dy*dy);
+
+//     double loc_x, loc_y;
+
+//     if(xIndex < x*y) {
+        
+//         cufftDoubleComplex pppk=idata[ind];
+
+//         double klapl=-(kx_square+ky_square);
+
+
+//         pppk.x=klapl*(pppk.x);
+//         pppk.y=klapl*(pppk.y);
+
+//         idata[ind]=pppk;
+//     }
+
+
 // }

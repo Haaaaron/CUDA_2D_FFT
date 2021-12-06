@@ -1,29 +1,36 @@
 #include <stdio.h>
 #include <iostream>
 #include <tuple>
+#include <cuda_runtime.h>
+#include <complex>
+#include <math.h>
 #include "main.h"
 #include "fft.h"
-using namespace std;
+
+template <typename T> std::string type_name();
+
+using std::complex;
+using std::cout;
 
 int main(int argc, char const *argv[]) {
 
-    int dx=10,dy=10;
-    system_2D<double> host(dx,dy);
+    int dx=12,dy=30;
+    system_2D<double, complex<double>> host(dx,dy);
     transform_system_2D<cufftDoubleReal, cufftDoubleComplex> device(host.get_dimensions());
-
-    for (auto i = 0; i < dx; i++) {
-        for (auto j = 0; j < dy; j++) {
-            host(i,j) = 1;
+    
+    for (auto j = 0; j < dy; j++) {
+        for (auto i = 0; i < dx; i++) {
+            host(j,i) = 0;
         }
     }
+    
+    host(dx/2,dy/2) = 1
 
-    //for (int& n : host_system.get_data()){n = 1;};
-    
-    
-    host.print();
-    device.forward_transform(host.get_data());
-    device.inverse_transform(host.get_data());
-    //forward_fft(host_system);
+    host.print(1);
+    device.forward_transform(host.real(),host.complex());   
+    device.inverse_transform(host.complex(),host.real());
+    host.print(dx*dy);
+
+    cout << typeid(host.real()).name() << "\n";
     return 0;
 }
-

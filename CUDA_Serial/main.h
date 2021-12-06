@@ -4,47 +4,47 @@
 
 using namespace std;
 
-template <typename T>
+template <typename R, typename C>
 class system_2D{
 
     private:
-        T* data;
-
+        R* real_data;
+        C* complex_data;
         int j_len,i_len;
 
     public:
     
-        system_2D(int w, int h):
-            data(new T[w*h]), j_len(w), i_len(h) {}
+        system_2D(int dx, int dy):
+            real_data(new R[dx*dy]), complex_data(new C[(dx/2+1)*dy]), i_len(dx), j_len(dy) {}
 
         ~system_2D(){
-            delete[] data;
+            delete[] real_data;
+            delete[] complex_data;
         }
 
-        T& operator()(int i, int j){
-            return data[j_len*i+j];
+        R& operator()(int j, int i){
+            return real_data[i_len*j+i];
         }
 
-        T* get_data() {
-            return data;
+        R* real() {
+            return real_data;
+        }
+
+        C* complex() {
+            return complex_data;
         }
 
         tuple<int,int> get_dimensions() {
-            return tuple<int,int>{j_len,i_len};
+            return tuple<int,int>{i_len,j_len};
         }
 
-        void print(){
-            int i,j;
-            for (auto i = 0; i < i_len; i++) {
-                for (auto j = 0; j < j_len; j++) {
-                    cout << (*this)(i,j) << " ";
+        void print(double rescale){
+            for (auto j = 0; j < j_len; j++) {
+                for (auto i = 0; i < i_len; i++) {
+                    cout << (*this)(j,i)/rescale << " ";
                 }        
                 cout << "\n"; 
             }   
             cout << "\n";
         }
 };
-
-
-//Function definitions
-void forward_fft(system_2D<double>& system);
