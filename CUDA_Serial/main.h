@@ -22,7 +22,7 @@ class system_2D{
             delete[] complex_data;
         }
 
-        R& operator()(int j, int i){
+        R& operator()(int  i, int j){
             return real_data[i_len*j+i];
         }
 
@@ -41,7 +41,7 @@ class system_2D{
         void print(double rescale){
             for (auto j = 0; j < j_len; j++) {
                 for (auto i = 0; i < i_len; i++) {
-                    cout << (*this)(j,i)/rescale << " ";
+                    cout << (*this)(i,j)/rescale << " ";
                 }        
                 cout << "\n"; 
             }   
