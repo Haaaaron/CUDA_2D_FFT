@@ -25,7 +25,9 @@ class transform_system_2D {
 
     public:
         transform_system_2D(tuple<int,int> dimensions):
-        real_dx(get<0>(dimensions)), complex_dx(get<0>(dimensions)/2+1), real_dy(get<1>(dimensions)), complex_dy(get<1>(dimensions)/2+1) {
+        real_dx(get<0>(dimensions)), complex_dx(get<0>(dimensions)/2+1), 
+        real_dy(get<1>(dimensions)), complex_dy(get<1>(dimensions)/2+1) {
+            
             // Allocate device memory
             cudaMalloc((void**)&real_buffer, sizeof(R)*real_dx*real_dy);
             cudaMalloc((void**)&complex_buffer, sizeof(C)*complex_dx*real_dy);
