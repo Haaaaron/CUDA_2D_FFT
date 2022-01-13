@@ -6,6 +6,7 @@ all: $(objects)
 %.o: %.cpp
 	nvcc -x cu -arch=sm_86 -I. -dc $< -o $@
 
+main.o: fft.h main.h
 
 FFT.o: FFT.cu
 	nvcc -arch=sm_86 -c $< -lcufft

@@ -30,3 +30,14 @@ __global__ void transpose(cufftDoubleComplex *idata, cufftDoubleComplex *odata, 
 	}
 }
 
+__global__ void evolve_system_kernel(cufftDoubleComplex *out, cufftDoubleComplex *in, int size) {
+	
+	cufftDoubleComplex var;
+	for (int i = 0; i < size; i++){
+		var.x = in[i].x;
+		var.y = in[i].y;
+		out[i].x = var.x * var.x;
+		out[i].y = var.y * var.y;
+	}
+}
+
