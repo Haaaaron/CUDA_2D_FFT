@@ -8,7 +8,7 @@ all: $(objects)
 
 
 FFT.o: FFT.cu
-	nvcc -arch=sm_86 -c FFT.cu -lcufft
+	nvcc -arch=sm_86 -c $< -lcufft
 
 clean:
 	rm -f *.o serial_cuda

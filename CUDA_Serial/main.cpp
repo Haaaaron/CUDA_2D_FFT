@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <iostream>
 #include <tuple>
-#include <cuda_runtime.h>
 #include <complex>
 #include <math.h>
 #include "main.h"
