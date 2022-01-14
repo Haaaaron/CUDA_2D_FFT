@@ -1,14 +1,53 @@
+#include <iostream>
+#include <stdio.h>
 #include <tuple>
 #include <cuda.h>
 #include <cufft.h>
+
+
 // https://enccs.github.io/openmp-gpu/gpu-architecture/
 #define tile_dim 4
 
 __global__ void transpose(cufftDoubleComplex* input_data, cufftDoubleComplex* output_data, int width, int height);
 __global__ void evolve_system_kernel(cufftDoubleComplex *out, cufftDoubleComplex *in, int size);
+__global__ void rescale(cufftDoubleReal *out, cufftDoubleReal *in, int size);
+
+using std::cout;
+using std::tuple;
+using std::get;
+
+class Timing {
+private:
+    float aggregate_transform;
+    float aggregate_transpose;
+
+public:
+    cudaEvent_t start_transform, stop_transform;
+    cudaEvent_t start_transpose, stop_transpose;
+    Timing() {
+        aggregate_transform = 0;
+        aggregate_transpose = 0;
+
+        cudaEventCreate(&start_transform);
+        cudaEventCreate(&stop_transform);
+        cudaEventCreate(&start_transpose);
+        cudaEventCreate(&stop_transpose);
+    }
+
+    void aggregate(float transform, float transpose) {
+        aggregate_transform += transform;
+        aggregate_transpose += transpose;
+    }
+
+    void print_time(){
+        cout << "Aggregate transform time: " << aggregate_transform*10e-4 << "s\n" 
+             << "Aggregate transpose time: " << aggregate_transpose*10e-4 << "s\n";
+    }
+
+};
 
 template <typename R, typename C>
-class transform_system_2D {
+class Transform_system_2D {
 private:
 
     cufftHandle to_complex, to_real, complex_to_complex;
@@ -19,14 +58,22 @@ private:
     int threads_per_block = tile_dim*tile_dim;
     int block_x=(complex_dx+tile_dim-1)/tile_dim;
     int block_y=(real_dy+tile_dim-1)/tile_dim;
-    
+    float scale = 1/(real_dx*real_dy);
+
+    //timing
+    float transform_t;
+    float transpose_t;
+
     //momentary
     C *host_arr_print_complex;
     R *host_arr_print_real;
 
 public:
+    //Timing object
+    Timing time;
 
-    transform_system_2D(tuple<int,int> dimensions):
+    //constructor
+    Transform_system_2D(tuple<int,int> dimensions):
     real_dx(get<0>(dimensions)), complex_dx(get<0>(dimensions)/2+1), 
     real_dy(get<1>(dimensions)), complex_dy(get<1>(dimensions)/2+1) {
         
@@ -59,10 +106,11 @@ public:
             NULL, 1, real_dy,
             NULL, 1, real_dy,
             CUFFT_Z2Z, complex_dx/2+1);
+
     }
 
     template <typename real>
-    void copy_real_from_host(real host_array_in) {
+    void copy_from(real host_array_in) {
         cudaMemcpy(real_buffer,
                     host_array_in,
                     sizeof(R)*real_dx*real_dy,
@@ -70,7 +118,7 @@ public:
     }
 
     template <typename real>
-    void copy_real_to_host(real host_array_out) {
+    void copy_to(real host_array_out) {
         cudaMemcpy(host_array_out,
                     real_buffer,
                     sizeof(R)*real_dx*real_dy,
@@ -78,7 +126,7 @@ public:
     }
 
     template <typename complex>
-    void copy_complex_from_host(complex host_array_in) {
+    void copy_complex_from(complex host_array_in) {
         cudaMemcpy(complex_buffer_transposed, 
                     host_array_in,
                     sizeof(C)*complex_dx*real_dy,
@@ -86,7 +134,7 @@ public:
     }
 
     template <typename complex>
-    void copy_complex_to_host(complex host_array_out) {
+    void copy_complex_to(complex host_array_out) {
         cudaMemcpy(host_array_out, 
                     complex_buffer_transposed,
                     sizeof(C)*complex_dx*real_dy,
@@ -94,88 +142,128 @@ public:
     }
 
     void forward_transform() {
+
+        transform_t = 0;
+        transpose_t = 0;
+
+        cudaEventRecord(time.start_transform, 0);
         cufftExecD2Z(to_complex, real_buffer, complex_buffer);
-        //CUDA kernels asynchronous, timing needs to be done differently 
+
+        cudaEventRecord(time.start_transpose, 0);
         transpose<<<dim3(block_x,block_y), dim3(tile_dim, tile_dim)>>>(complex_buffer,complex_buffer_transposed, complex_dx, real_dy);
+        cudaEventRecord(time.stop_transpose, 0);
+
         cufftExecZ2Z(complex_to_complex, complex_buffer_transposed, complex_buffer_transposed, CUFFT_FORWARD);
+        cudaEventRecord(time.stop_transform,0);
+
+        cudaEventSynchronize(time.stop_transpose);
+        cudaEventSynchronize(time.stop_transform);
+
+        cudaEventElapsedTime(&transform_t, time.start_transform, time.stop_transform);
+        cudaEventElapsedTime(&transpose_t, time.start_transpose, time.stop_transpose);
+
+        time.aggregate(transform_t, transpose_t);
     }
 
     void inverse_transform() {
+        transform_t = 0;
+        transpose_t = 0;
+
+        cudaEventRecord(time.start_transform, 0);
         cufftExecZ2Z(complex_to_complex, complex_buffer_transposed, complex_buffer_transposed, CUFFT_INVERSE);
+        cudaEventRecord(time.start_transpose, 0);
         transpose<<<dim3(block_y,block_x), dim3(tile_dim, tile_dim)>>>(complex_buffer_transposed,complex_buffer, real_dy, complex_dx);
+        cudaEventRecord(time.stop_transpose, 0);
         cufftExecZ2D(to_real, complex_buffer, real_buffer);
+        cudaEventRecord(time.stop_transform,0);
+
+        //rescale<<<1,1>>>(real_buffer,real_buffer,real_dx*real_dy);
+
+        cudaEventSynchronize(time.stop_transpose);
+        cudaEventSynchronize(time.stop_transform);
+
+        cudaEventElapsedTime(&transform_t, time.start_transform, time.stop_transform);
+        cudaEventElapsedTime(&transpose_t, time.start_transpose, time.stop_transpose);
+
+        time.aggregate(transform_t, transpose_t);
+
     }
 
     // Physical system evolution
     void evolve_system() {
-        evolve_system_kernel<<<dim3(block_x,block_y), dim3(tile_dim, tile_dim)>>>(complex_buffer_transposed, complex_buffer_transposed, complex_dx*real_dy);
-    };  
+        evolve_system_kernel<<<dim3(block_y,block_x), dim3(tile_dim, tile_dim)>>>(complex_buffer_transposed, complex_buffer_transposed, complex_dx*real_dy);
+    }
 
+    void print_time() {
+        time.print_time();
+    }
+
+    void print_complex(){        
+        cudaMemcpy(host_arr_print_complex, complex_buffer,
+                    sizeof(C)*(complex_dx)*real_dy,
+                    cudaMemcpyDeviceToHost);
+        cout << "Complex buffer:" << "\n";
+        double x, y;
+        for (auto i = 0; i < real_dy; i++) {
+            for (auto j = 0; j < complex_dx; j++) {
+                if (fabs(host_arr_print_complex[i*complex_dx+j].x) < 10e-6) {
+                    x = 0;
+                } else {
+                    x = host_arr_print_complex[i*complex_dx+j].x;
+                }
+                if (fabs(host_arr_print_complex[i*complex_dx+j].y) < 10e-6) {
+                    y = 0;
+                } else {
+                    y = host_arr_print_complex[i*complex_dx+j].y;
+                }
+                cout << x << " + I*" << y << "   ";
+            }
+            cout << "\n";
+        }
+        
+        cout << "\n";
+    }
+
+    void print_complex_T(){        
+        cudaMemcpy(host_arr_print_complex, complex_buffer_transposed,
+                    sizeof(C)*(complex_dx)*real_dy,
+                    cudaMemcpyDeviceToHost);
+        cout << "Complex buffer T:" << "\n";
+        double x, y;
+        for (auto i = 0; i < complex_dx; i++) {
+            for (auto j = 0; j < real_dy; j++) {
+                if (fabs(host_arr_print_complex[i*real_dy+j].x) < 10e-6) {
+                    x = 0;
+                } else {
+                    x = host_arr_print_complex[i*real_dy+j].x;
+                }
+                if (fabs(host_arr_print_complex[i*real_dy+j].y) < 10e-6) {
+                    y = 0;
+                } else {
+                    y = host_arr_print_complex[i*real_dy+j].x;
+                }
+                cout << x << " + I*" << y << "   ";
+            }
+            cout << "\n";
+        }
+        
+        cout << "\n";
+        
+    }
+    
+    void print_real(){        
+        cudaMemcpy(host_arr_print_real, real_buffer,
+                    sizeof(R)*(real_dx)*real_dy,
+                    cudaMemcpyDeviceToHost);
+        cout << "Real buffer results:" << "\n";
+        for (auto i = 0; i < real_dy; i++) {
+            for (auto j = 0; j < real_dx; j++) {
+                cout << host_arr_print_real[i*real_dx+j] << "   ";
+            }  
+            cout << "\n";
+        }
+        cout << "\n";
+    }
 };
 
-        // void print_complex(){        
-        //     cudaMemcpy(host_arr_print_complex, complex_buffer,
-        //                 sizeof(C)*(complex_dx)*real_dy,
-        //                 cudaMemcpyDeviceToHost);
-        //     cout << "Complex buffer:" << "\n";
-        //     double x, y;
-        //     for (auto i = 0; i < real_dy; i++) {
-        //         for (auto j = 0; j < complex_dx; j++) {
-        //             if (fabs(host_arr_print_complex[i*complex_dx+j].x) < 10e-6) {
-        //                 x = 0;
-        //             } else {
-        //                 x = host_arr_print_complex[i*complex_dx+j].x;
-        //             }
-        //             if (fabs(host_arr_print_complex[i*complex_dx+j].y) < 10e-6) {
-        //                 y = 0;
-        //             } else {
-        //                 y = host_arr_print_complex[i*complex_dx+j].y;
-        //             }
-        //             cout << x << " + I*" << y << "   ";
-        //         }
-        //         cout << "\n";
-        //     }
-            
-        //     cout << "\n";
-        // }
-
-        // void print_complex_T(){        
-        //     cudaMemcpy(host_arr_print_complex, complex_buffer_transposed,
-        //                 sizeof(C)*(complex_dx)*real_dy,
-        //                 cudaMemcpyDeviceToHost);
-        //     cout << "Complex buffer T:" << "\n";
-        //     double x, y;
-        //     for (auto i = 0; i < complex_dx; i++) {
-        //         for (auto j = 0; j < real_dy; j++) {
-        //             if (fabs(host_arr_print_complex[i*real_dy+j].x) < 10e-6) {
-        //                 x = 0;
-        //             } else {
-        //                 x = host_arr_print_complex[i*real_dy+j].x;
-        //             }
-        //             if (fabs(host_arr_print_complex[i*real_dy+j].y) < 10e-6) {
-        //                 y = 0;
-        //             } else {
-        //                 y = host_arr_print_complex[i*real_dy+j].x;
-        //             }
-        //             cout << x << " + I*" << y << "   ";
-        //         }
-        //         cout << "\n";
-        //     }
-            
-        //     cout << "\n";
-            
-        // }
         
-        // void print_real(){        
-        //     cudaMemcpy(host_arr_print_real, real_buffer,
-        //                 sizeof(R)*(real_dx)*real_dy,
-        //                 cudaMemcpyDeviceToHost);
-        //     cout << "Real buffer results:" << "\n";
-        //     for (auto i = 0; i < real_dy; i++) {
-        //         for (auto j = 0; j < real_dx; j++) {
-        //             cout << host_arr_print_real[i*real_dx+j] << "   ";
-        //         }
-        //         cout << "\n";
-        //     }
-        //     cout << "\n";
-        // }

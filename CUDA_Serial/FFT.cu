@@ -32,12 +32,16 @@ __global__ void transpose(cufftDoubleComplex *idata, cufftDoubleComplex *odata, 
 
 __global__ void evolve_system_kernel(cufftDoubleComplex *out, cufftDoubleComplex *in, int size) {
 	
-	cufftDoubleComplex var;
-	for (int i = 0; i < size; i++){
-		var.x = in[i].x;
-		var.y = in[i].y;
-		out[i].x = var.x * var.x;
-		out[i].y = var.y * var.y;
-	}
+	unsigned int ind = threadIdx.x;
+	cufftDoubleComplex tmp = in[ind];
+	out[ind].x = tmp.x*0.25;
+	out[ind].y = tmp.y*0.25;	
 }
 
+__global__ void rescale(cufftDoubleReal *out, cufftDoubleReal *in, int size) {
+	
+	float scale_factor = 1.0/size;
+	for (int i = 0; i < size; i++){
+		out[i] = in[i]*scale_factor;
+	}
+}

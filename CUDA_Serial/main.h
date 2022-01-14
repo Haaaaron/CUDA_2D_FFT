@@ -2,10 +2,13 @@
 #include <iostream>
 #include <stdio.h>
 
-using namespace std;
+using std::tuple;
+using std::complex;
+using std::cout;
+using namespace std::chrono;
 
 template <typename R, typename C>
-class system_2D{
+class System_2D{
 
     private:
         R* real_data;
@@ -14,10 +17,10 @@ class system_2D{
 
     public:
     
-        system_2D(int dx, int dy):
+        System_2D(int dx, int dy):
             real_data(new R[dx*dy]), complex_data(new C[(dx/2+1)*dy]), i_len(dx), j_len(dy) {}
 
-        ~system_2D(){
+        ~System_2D(){
             delete[] real_data;
             delete[] complex_data;
         }
