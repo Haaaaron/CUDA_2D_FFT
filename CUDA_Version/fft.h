@@ -24,6 +24,7 @@ private:
 public:
     cudaEvent_t start_transform, stop_transform;
     cudaEvent_t start_transpose, stop_transpose;
+
     Timing() {
         aggregate_transform = 0;
         aggregate_transpose = 0;
@@ -43,7 +44,6 @@ public:
         cout << "Aggregate transform time: " << aggregate_transform*10e-4 << "s\n" 
              << "Aggregate transpose time: " << aggregate_transpose*10e-4 << "s\n";
     }
-
 };
 
 template <typename R, typename C>
@@ -146,6 +146,7 @@ public:
         transform_t = 0;
         transpose_t = 0;
 
+        //AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         cudaEventRecord(time.start_transform, 0);
         cufftExecD2Z(to_complex, real_buffer, complex_buffer);
 
@@ -155,6 +156,8 @@ public:
 
         cufftExecZ2Z(complex_to_complex, complex_buffer_transposed, complex_buffer_transposed, CUFFT_FORWARD);
         cudaEventRecord(time.stop_transform,0);
+        //VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
+
 
         cudaEventSynchronize(time.stop_transpose);
         cudaEventSynchronize(time.stop_transform);
@@ -171,9 +174,11 @@ public:
 
         cudaEventRecord(time.start_transform, 0);
         cufftExecZ2Z(complex_to_complex, complex_buffer_transposed, complex_buffer_transposed, CUFFT_INVERSE);
+       
         cudaEventRecord(time.start_transpose, 0);
         transpose<<<dim3(block_y,block_x), dim3(tile_dim, tile_dim)>>>(complex_buffer_transposed,complex_buffer, real_dy, complex_dx);
         cudaEventRecord(time.stop_transpose, 0);
+       
         cufftExecZ2D(to_real, complex_buffer, real_buffer);
         cudaEventRecord(time.stop_transform,0);
 

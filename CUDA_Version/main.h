@@ -1,11 +1,15 @@
-#include <tuple>
-#include <iostream>
 #include <stdio.h>
+#include <iostream>
+#include <tuple>
+#include <complex>
+#include <math.h>
+#include <chrono>
 
 using std::tuple;
 using std::complex;
 using std::cout;
 using namespace std::chrono;
+template <typename T> std::string type_name();
 
 template <typename R, typename C>
 class System_2D{

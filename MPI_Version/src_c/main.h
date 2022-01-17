@@ -1,5 +1,16 @@
-#ifndef __TwoDMPIPFC_H__
-#define __TwoDMPIPFC_H__
+#include "mpi.h"
+#include <math.h>
+#include <fftw3.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <complex.h>
+#include <string.h> 
+#include <time.h>
+
+/*
+Default parameters
+------------------
+*/
 typedef struct {
     int lx;
     int ly;
@@ -8,15 +19,7 @@ typedef struct {
     int lhx;
     int lhy;
     double pi;
-    double sq3;
-    double at;
-    double qqt;
     double dt; 
-    double VV;
-    double dx;
-    double dy;
-    double r;
-    double pm;
 } Parameters;
 
 typedef struct {
@@ -73,40 +76,20 @@ typedef struct {
 
 } fft_builds;
 
-// Structs fo Physical system
 typedef struct {
-    double* lxhp,* zero,* rest;
-} Phys_coeff;
-
-typedef struct {
-    // kx_zero nad kx_final are a waste of memory if rank isn't 0
     fftw_complex* kx_zero,* kx_final,* rest;
 } Complex_field;
-
-typedef struct {
-    Phys_coeff energy;
-    Phys_coeff ntc;
-    Phys_coeff psi;
-} Phys_all_coeff;
 
 typedef struct {
     Complex_field complex_buffer;
     Complex_field complex_nt;
     Complex_field complex_psi;
-    double* psi;
-    double* nt;
     double* real_buffer;
-    double* final_energy;
-    double total_energy;
-    Phys_all_coeff coeff;
 } Physical_system;
 
 
 
-extern void coeff_init(Parameters params, Init_rank_parameters info, Physical_system* system);
-extern void fill_2d_phys_arr(Parameters params, Init_rank_parameters info, Phys_all_coeff coefficients, int start, int end);
-extern double energy(Parameters params, Init_rank_parameters info, Physical_system system, fft_builds builds);
-extern double* update(Parameters params, Init_rank_parameters info, Physical_system system, fft_builds builds);
+extern void buffer_init(Parameters params, Init_rank_parameters info, Physical_system* system);
 
 extern void fft_init(Parameters params, Init_rank_parameters* info, fft_builds* plans);
 extern void fft_forward(Parameters params, Init_rank_parameters info, fft_builds plans, double* input_arr, Complex_field output_arr);
@@ -114,15 +97,3 @@ extern void fft_backward(Parameters params, Init_rank_parameters info, fft_build
 
 extern void init_params(int argc, char* argv[], int* size_x, int* size_y, int* iteration_count);
 extern void output_time(struct Time time, Init_rank_parameters info);
-
-//Macros for debugging
-#define deb(arr, end, type)                 \
-  for (int l = 0; l < (end); l++) {         \
-    type(arr[l],l);                         \
-  }                                         \
-printf("\n");//exit(0);
-#define rdeb(x,i) printf("%.16e \n",x,i)
-#define cdeb(x,i) printf("%.16e %.16e %d\n",creal(x),cimag(x),i)
-#define fcdeb(x,i) printf("%.16e %.16e %d\n",x[0],x[1],i)
-
-#endif

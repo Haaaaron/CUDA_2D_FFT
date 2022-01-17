@@ -1,26 +1,19 @@
-#include <stdio.h>
-#include <iostream>
-#include <tuple>
-#include <complex>
-#include <math.h>
-#include <chrono>
 #include "main.h"
 #include "fft.h"
 
-template <typename T> std::string type_name();
-
 int main(int argc, char const *argv[]) {
 
-    const int dx=11000,dy=11000;
+    const int dx=12000,dy=12000;
     const double pi = acos(-1);
-    const int steps = 100;
+    const int steps = 10;
 
     System_2D<double, complex<double>> host(dx,dy);
     Transform_system_2D<cufftDoubleReal, cufftDoubleComplex> device(host.get_dimensions());
     
     for (auto j = 0; j < dy; j++) {
         for (auto i = 0; i < dx; i++) {
-            host(i,j) = cos(2*pi*i/10);
+            //host(i,j) = cos(2*pi*i/10);
+            host(i,j) = 1;
         }
     }
     
@@ -31,7 +24,7 @@ int main(int argc, char const *argv[]) {
     auto start = high_resolution_clock::now();
     for (auto j = 0; j<steps ; j++) {
         device.forward_transform();
-        device.evolve_system();
+        //device.evolve_system();
         device.inverse_transform();
 
     }

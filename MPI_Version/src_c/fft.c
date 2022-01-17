@@ -107,8 +107,7 @@ void fft_init(Parameters params, Init_rank_parameters *info, fft_builds *builds)
 Function: fft_forward
 ------------------
 
-Calcualtes forward fast fourier transform for complete 2d plane
-Takes in a 2d input array, and returns 2d output array
+Calculates forward FFT for complete 2d plane
 */
 void fft_forward(Parameters params, Init_rank_parameters info, fft_builds builds, double *input_arr, Complex_field output_arr) {
 
@@ -199,6 +198,12 @@ void fft_forward(Parameters params, Init_rank_parameters info, fft_builds builds
 
 }
 
+/*
+Function: fft_forward
+------------------
+
+Calculates forward FFT for complete 2d plane
+*/
 void fft_backward(Parameters params, Init_rank_parameters info, fft_builds builds, Complex_field input_arr, double* output_arr) {
 
     int i, j;
