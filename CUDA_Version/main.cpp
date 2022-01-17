@@ -3,13 +3,20 @@
 
 int main(int argc, char const *argv[]) {
 
-    const int dx=12000,dy=12000;
+    int dx; 
+    int dy;
+    int iteration_count;
     const double pi = acos(-1);
-    const int steps = 10;
+
+    init_arguments(argc, argv, &dx, &dy, &iteration_count);
 
     System_2D<double, complex<double>> host(dx,dy);
+
+    auto start_plans_t = high_resolution_clock::now();
     Transform_system_2D<cufftDoubleReal, cufftDoubleComplex> device(host.get_dimensions());
-    
+    auto stop_plans_t = high_resolution_clock::now();
+    auto duration_plans = duration_cast<microseconds>(stop_plans_t - start_plans_t);
+
     for (auto j = 0; j < dy; j++) {
         for (auto i = 0; i < dx; i++) {
             //host(i,j) = cos(2*pi*i/10);
@@ -22,7 +29,7 @@ int main(int argc, char const *argv[]) {
     device.copy_from(host.real());
 
     auto start = high_resolution_clock::now();
-    for (auto j = 0; j<steps ; j++) {
+    for (auto j = 0; j<iteration_count ; j++) {
         device.forward_transform();
         //device.evolve_system();
         device.inverse_transform();
@@ -33,7 +40,8 @@ int main(int argc, char const *argv[]) {
 
     device.copy_to(host.real());
     
-    cout << "Total time:" << duration.count()*10e-7 << " s\n";
+    cout << "Total run without init: " << duration.count()*10e-7 << " s\n";
+    cout << "Time fft plan creation: " << duration_plans.count()*10e-7 << " s\n";
     device.time.print_time();
 
     return 0;

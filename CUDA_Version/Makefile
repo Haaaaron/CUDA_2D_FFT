@@ -1,14 +1,19 @@
-objects = main.o FFT.o
-all: $(objects)
-	nvcc -arch=sm_86 -lcufft $(objects) -o serial_cuda
+
+SOURCES = main.cpp FFT.cu utilities.cpp
+OBJECTS = main.o utilities.o FFT.o
+EXECUTABLE = cuda_version
+
+$(EXECUTABLE): $(OBJECTS)
+	nvcc -arch=sm_86 -lcufft $(OBJECTS) -o $@
 
 %.o: %.cpp
 	nvcc -x cu -arch=sm_86 -I. -dc $< -o $@
 
-main.o: fft.h main.h
-
-FFT.o: FFT.cu
+%.o: %.cu
 	nvcc -arch=sm_86 -c $< -lcufft
 
+main.o: fft.h main.h
+all:
+	@echo $(OBJECTS)
 clean:
-	rm -f *.o serial_cuda
+	rm -f *.o cuda_version

@@ -1,5 +1,7 @@
 {
     "files.associations": {
+        "*.h": "cuda",
+        "*.cu": "cpp",
         "tuple": "cpp",
         "iostream": "cpp",
         "array": "cpp",
@@ -45,6 +47,7 @@
         "sstream": "cpp",
         "stdexcept": "cpp",
         "streambuf": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "chrono": "cpp"
     }
 }

@@ -11,6 +11,8 @@ using std::cout;
 using namespace std::chrono;
 template <typename T> std::string type_name();
 
+void init_arguments(int argc, char const* argv[], int* dx, int* dy, int* iteration_count);
+
 template <typename R, typename C>
 class System_2D{
 
