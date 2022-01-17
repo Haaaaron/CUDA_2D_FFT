@@ -1,11 +1,18 @@
-# Two Dimensional FFT with CUDA
+# Simple Two dimensional FFT implementations
 
-All of the simulations are built around a Phase Field Crystal model, nonetheless the main focus is the 2D Fast Fourier Transform 
+Simple implementations of 2-dimensional fast Fourier transforms. These softwares are a good indication of the power that GPU's can offer compared to pure CPU computation.
 
-## [FFTW+MPI](./FFTW_MPI_PFC_Model)
+## [CUDA Version](./CUDA_Version)
 
-Phase Field Crystal model paralellised with MPI
+| Dependencies: | Tested with version   |
+|---------------|-----------------------|
+| GCC           | 9.3.0                 |
+| CUDA          | 11.4 (Driver: 470.86) |
 
-## [Serial CUDA FFT](./CUDA_Serial)
+## [MPI Verison](./MPI_Version)
 
-Serial version of CUDA FFT
+| Dependencies: | Tested with version |
+|---------------|---------------------|
+| GCC           | 9.3.0               |
+| MPI           | 4.0.3               |
+| FFTW3         | 3.3.10              |
