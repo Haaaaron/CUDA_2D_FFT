@@ -16,16 +16,19 @@ using std::cout;
 using std::tuple;
 using std::get;
 
-class Timing {
+class Timing_and_memory_utility{
 private:
     float aggregate_transform;
     float aggregate_transpose;
+
+    double free_m,total_m,used_m;
+    size_t free_t,total_t;
 
 public:
     cudaEvent_t start_transform, stop_transform;
     cudaEvent_t start_transpose, stop_transpose;
 
-    Timing() {
+    Timing_and_memory_utility() {
         aggregate_transform = 0;
         aggregate_transpose = 0;
 
@@ -36,13 +39,25 @@ public:
     }
 
     void aggregate(float transform, float transpose) {
-        aggregate_transform += transform;
+        aggregate_transform += (transform-transpose);
         aggregate_transpose += transpose;
     }
 
     void print_time(){
-        cout << "Aggregate transform time: " << aggregate_transform*10e-4 << "s\n" 
-             << "Aggregate transpose time: " << aggregate_transpose*10e-4 << "s\n";
+        aggregate_transform = aggregate_transform*1.0e-3;
+        aggregate_transpose = aggregate_transpose*1.0e-3;
+        cout << "Aggregate transform time: " << aggregate_transform << "s\n" //*10e-4
+             << "Aggregate transpose time: " << aggregate_transpose << "s\n";//*10e-4
+    }
+
+    void gpu_memory_usage(const char* inquiry_text) {
+
+        cudaMemGetInfo(&free_t,&total_t);
+        free_m =free_t/1048576.0 ;
+        total_m=total_t/1048576.0;
+        used_m=total_m-free_m;
+
+        cout << inquiry_text << used_m << '\n';
     }
 };
 
@@ -69,18 +84,22 @@ private:
     R *host_arr_print_real;
 
 public:
-    //Timing object
-    Timing time;
+
+    Timing_and_memory_utility utility;
 
     //constructor
     Transform_system_2D(tuple<int,int> dimensions):
     real_dx(get<0>(dimensions)), complex_dx(get<0>(dimensions)/2+1), 
     real_dy(get<1>(dimensions)), complex_dy(get<1>(dimensions)/2+1) {
-        
+
+        utility.gpu_memory_usage("Used memory beofre malloc: ");
+
         // Allocate device memory
         cudaMalloc((void**)&real_buffer, sizeof(R)*real_dx*real_dy);
         cudaMalloc((void**)&complex_buffer, sizeof(C)*complex_dx*real_dy);
         cudaMalloc((void**)&complex_buffer_transposed, sizeof(C)*complex_dx*real_dy);
+
+        utility.gpu_memory_usage("Used memory after malloc: ");
 
         host_arr_print_complex = new C[complex_dx*real_dy];
         host_arr_print_real = new R[real_dx*real_dy];
@@ -93,13 +112,16 @@ public:
             &to_complex, 1, fft_len_real,
             NULL, 1, real_dx,
             NULL, 1, complex_dx,
-            CUFFT_D2Z, real_dy);
+            CUFFT_D2Z, real_dy);     
 
+        
         cufftPlanMany(
             &to_real, 1, fft_len_real,
             NULL, 1, complex_dx,
             NULL, 1, real_dx,
             CUFFT_Z2D, real_dy);
+
+
         
         cufftPlanMany(
             &complex_to_complex, 1, fft_len_complex,
@@ -107,6 +129,8 @@ public:
             NULL, 1, real_dy,
             CUFFT_Z2Z, complex_dx/2+1);
 
+        utility.gpu_memory_usage("Used memory after plan creation: ");
+                    
     }
 
     template <typename real>
@@ -147,50 +171,52 @@ public:
         transpose_t = 0;
 
         //AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        cudaEventRecord(time.start_transform, 0);
+        cudaEventRecord(utility.start_transform, 0);
         cufftExecD2Z(to_complex, real_buffer, complex_buffer);
 
-        cudaEventRecord(time.start_transpose, 0);
+        cudaEventRecord(utility.start_transpose, 0);
         transpose<<<dim3(block_x,block_y), dim3(tile_dim, tile_dim)>>>(complex_buffer,complex_buffer_transposed, complex_dx, real_dy);
-        cudaEventRecord(time.stop_transpose, 0);
+        cudaEventRecord(utility.stop_transpose, 0);
 
         cufftExecZ2Z(complex_to_complex, complex_buffer_transposed, complex_buffer_transposed, CUFFT_FORWARD);
-        cudaEventRecord(time.stop_transform,0);
+        cudaEventRecord(utility.stop_transform,0);
         //VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 
 
-        cudaEventSynchronize(time.stop_transpose);
-        cudaEventSynchronize(time.stop_transform);
+        cudaEventSynchronize(utility.stop_transpose);
+        cudaEventSynchronize(utility.stop_transform);
 
-        cudaEventElapsedTime(&transform_t, time.start_transform, time.stop_transform);
-        cudaEventElapsedTime(&transpose_t, time.start_transpose, time.stop_transpose);
+        cudaEventElapsedTime(&transform_t, utility.start_transform, utility.stop_transform);
+        cudaEventElapsedTime(&transpose_t, utility.start_transpose, utility.stop_transpose);
 
-        time.aggregate(transform_t, transpose_t);
+        utility.aggregate(transform_t, transpose_t);
+        //cudaDeviceSynchronize();
     }
 
     void inverse_transform() {
         transform_t = 0;
         transpose_t = 0;
 
-        cudaEventRecord(time.start_transform, 0);
+        cudaEventRecord(utility.start_transform, 0);
         cufftExecZ2Z(complex_to_complex, complex_buffer_transposed, complex_buffer_transposed, CUFFT_INVERSE);
        
-        cudaEventRecord(time.start_transpose, 0);
+        cudaEventRecord(utility.start_transpose, 0);
         transpose<<<dim3(block_y,block_x), dim3(tile_dim, tile_dim)>>>(complex_buffer_transposed,complex_buffer, real_dy, complex_dx);
-        cudaEventRecord(time.stop_transpose, 0);
+        cudaEventRecord(utility.stop_transpose, 0);
        
         cufftExecZ2D(to_real, complex_buffer, real_buffer);
-        cudaEventRecord(time.stop_transform,0);
+        cudaEventRecord(utility.stop_transform,0);
 
-        //rescale<<<1,1>>>(real_buffer,real_buffer,real_dx*real_dy);
+        //rescale<<<(real_dx*real_dy+1024-1)/1024,1024>>>(real_buffer,real_buffer,real_dx*real_dy);
 
-        cudaEventSynchronize(time.stop_transpose);
-        cudaEventSynchronize(time.stop_transform);
+        cudaEventSynchronize(utility.stop_transpose);
+        cudaEventSynchronize(utility.stop_transform);
 
-        cudaEventElapsedTime(&transform_t, time.start_transform, time.stop_transform);
-        cudaEventElapsedTime(&transpose_t, time.start_transpose, time.stop_transpose);
+        cudaEventElapsedTime(&transform_t, utility.start_transform, utility.stop_transform);
+        cudaEventElapsedTime(&transpose_t, utility.start_transpose, utility.stop_transpose);
 
-        time.aggregate(transform_t, transpose_t);
+        utility.aggregate(transform_t, transpose_t);
+        //cudaDeviceSynchronize();
 
     }
 
@@ -200,7 +226,7 @@ public:
     }
 
     void print_time() {
-        time.print_time();
+        utility.print_time();
     }
 
     void print_complex(){        

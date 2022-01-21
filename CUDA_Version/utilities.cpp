@@ -9,6 +9,8 @@ Reads in command line arguments:
 void init_arguments(int argc, char const* argv[], int* dx, int* dy, int* iteration_count) {
     switch(argc) {
         case 1:
+            cout << "Using default values: \n"
+                 << "dx = 10; dy = 10; iteration_count = 1\n\n";
             *dx = 10;
             *dy = 10;
             *iteration_count = 1;
