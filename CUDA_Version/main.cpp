@@ -44,16 +44,17 @@ int main(int argc, char const *argv[]) {
     cout << "Time fft plan creation: " << duration_plans.count()*1.0e-3 << " s\n";
     device.utility.print_time();
 
-    // double sum = 0;
-    // for (auto j = 0; j < dy; j++) {
-    //     for (auto i = 0; i < dx; i++) {
-    //         //host(i,j) = cos(2*pi*i/10);
-    //         sum += host(i,j);
-    //     }
-    // }
+    double sum = 0;
+    for (auto j = 0; j < dy; j++) {
+        for (auto i = 0; i < dx; i++) {
+            //host(i,j) = cos(2*pi*i/10);
+            sum += host(i,j);
+        }
+    }
 
-    // //host.print(1);
-    // cout << sum << '\n';
+    //host.print(1);
+    host.print_R();
+    cout << sum << '\n';
 
     return 0;
 }
