@@ -1,4 +1,4 @@
-# Simple Two dimensional FFT implementations
+# 2-Dimensional Fourier transform implemented with CUDA
 
 Simple implementations of 2-dimensional fast Fourier transforms. These softwares are a good indication of the power that GPU's can offer compared to pure CPU computation.
 
